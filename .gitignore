@@ -1,6 +1,4 @@
 example/
 signalfx_example.go
-go.mod
-go.sum
 gorilla-sfx-demo
 main
