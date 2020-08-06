@@ -12,6 +12,8 @@ import (
 	//httptrace "github.com/signalfx/signalfx-go-tracing/contrib/net/http"
 	"github.com/signalfx/signalfx-go-tracing/tracing"
 	//"github.com/signalfx/signalfx-go-tracing/ddtrace/tracer"
+	//"github.com/opentracing/opentracing-go"
+	//spanlog "github.com/opentracing/opentracing-go/log"
 )
 
 //var logger log.Logger
@@ -24,6 +26,24 @@ type Message struct {
 }
 
 func RootHandler(w http.ResponseWriter, r *http.Request) {
+//	span := tracer.StartSpan("RootHandler", tracer.ResourceName("/"))
+//	defer span.Finish()
+
+	// Retrieve Trace ID and Span ID
+//	traceID := span.Context().TraceID()
+//	spanID := span.Context().SpanID()
+	// span.Context().TraceID undefined (type opentracing.SpanContext has no field or method TraceID)
+
+//	logger.Printf("Start handling root request signalfx.trace_id=%d signalfx.span_id=%d", traceId, spanID)
+
+//	span, _ := opentracing.StartSpanFromContext(r.Context(), "RootHandler")
+//	defer span.Finish()
+//	span.LogFields(spanlog.String("message", "root handler span"))
+//
+//	// span.Context().TraceID undefined (type opentracing.SpanContext has no field or method TraceID)
+//	traceID := span.Context().TraceID()
+//	spanID := span.Context().SpanID()
+
 	logger.Printf("Start handling root request")
 	w.Write([]byte("Root Gorilla!\n"))
 }
