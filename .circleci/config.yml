@@ -52,7 +52,7 @@ jobs:
             cd ~/${GITHUB_REPOSITORY}
             gh pr create \
               -t "deploy a new image ${APP_DIR}:${CIRCLE_SHA1}" \
-              -b "auto-generated pull request from CircleCI  \nhttps://github.com/${GITHUB_ORG}/${APP_DIR}/commit/${CIRCLE_SHA1}"
+              -b "CircleCI auto-generated pull request from https://github.com/${GITHUB_ORG}/${APP_DIR}/commit/${CIRCLE_SHA1}"
 
       # Slack
       - slack/status:
@@ -99,10 +99,10 @@ workflows:
           repo: ${AWS_ECR_REPOSITORY}
           skip-when-tags-exist: false
           tag: 'latest,${CIRCLE_SHA1}'
-          #filters:
-          #  branches:
-          #    only: 
-          #      - master
+          filters:
+            branches:
+              only: 
+                - master
       - slack/approval-notification:
           name: slack_approval_notification
           mentions: U23ACBMB5
