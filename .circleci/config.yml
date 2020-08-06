@@ -23,7 +23,7 @@ jobs:
           name: install gh
           command: |
             wget https://github.com/cli/cli/releases/download/v${GH_CLI_VERSION}/gh_${GH_CLI_VERSION}_linux_386.deb
-            sudo apt install ./gh_${GH_CLI_VERSION}_linux_amd64.deb
+            sudo dpkg --install ./gh_${GH_CLI_VERSION}_linux_amd64.deb
       - run:
           name: install kustomize
           command: |
