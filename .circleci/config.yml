@@ -49,6 +49,7 @@ jobs:
       - run:
           name: create pull request
           command: |
+            cd ~/${GITHUB_REPOSITORY}
             gh pr create \
               -t "deploy a new image ${APP_DIR}:${CIRCLE_SHA1}" \
               -b "auto-generated pull request from CircleCI  \nhttps://github.com/${GITHUB_ORG}/${APP_DIR}/commit/${CIRCLE_SHA1}"
