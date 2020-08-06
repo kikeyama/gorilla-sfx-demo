@@ -34,12 +34,11 @@ jobs:
           command: |
             git config --global user.name ${GITHUB_USERNAME}
             git config --global user.email ${GITHUB_EMAIL}
-            git init
             git clone https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/${GITHUB_ORG}/${GITHUB_REPOSITORY}.git
       - run:
           name: update manifest
           command: |
-            cd ${APP_DIR}
+            cd ${GITHUB_REPOSITORY}/${APP_DIR}
             git checkout -b gitops-${GITHUB_USERNAME}-${CIRCLE_SHA1}
             kustomize edit set image ${AWS_ECR_ACCOUNT_URL}/${${AWS_ECR_REPOSITORY}}:${CIRCLE_SHA1}
             git add .
