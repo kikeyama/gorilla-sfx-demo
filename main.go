@@ -44,20 +44,20 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 //	traceID := span.Context().TraceID()
 //	spanID := span.Context().SpanID()
 
-	logger.Printf("Start handling root request")
+	logger.Printf("level=info message=\"Start handling root request\"")
 	w.Write([]byte("Root Gorilla!\n"))
 }
 
 func PostHandler(w http.ResponseWriter, r *http.Request) {
-	logger.Printf("Start handling post request")
+	logger.Printf("level=info message=\"Start handling post request\"")
 	var message Message
 	err := json.NewDecoder(r.Body).Decode(&message)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusTeapot)
-		logger.Printf("ボディがガラ空きやで")
+		logger.Printf("level=error message=\"ボディがガラ空きやで\"")
 		return
 	}
-	logger.Printf("Message: %+v", message)
+	logger.Printf("level=info message=\"%+v\"", message)
 	w.Write([]byte(message.Message))
 
 	//body, err := json.Marshal(r.Body)
@@ -71,7 +71,7 @@ func PostHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func IdHandler(w http.ResponseWriter, r *http.Request) {
-	logger.Printf("Start handling ID request")
+	logger.Printf("level=info message=\"Start handling ID request\"")
 	// {id} in path
 	vars := mux.Vars(r)
 	//resp := "ID %v Gorilla!\n", vars["id"]
@@ -90,9 +90,9 @@ func IdHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if intHttpstatus < 400 {
-		logger.Printf("HTTP Status: " + httpstatus)
+		logger.Printf("level=info message=\"HTTP Status: " + httpstatus + "\"")
 	} else {
-		logger.Printf("エラーです HTTP Status: " + httpstatus)
+		logger.Printf("level=error message=\"エラーです HTTP Status: " + httpstatus + "\"")
 		http.Error(w, "HTTPステータスコードが" + httpstatus + "なのでエラーですYO", intHttpstatus)
 	}
 
@@ -100,7 +100,7 @@ func IdHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GrpcHandler(w http.ResponseWriter, r *http.Request) {
-	logger.Printf("Start handling GRPC request")
+	logger.Printf("level=info message=\"Start handling GRPC request\"")
 	w.Write([]byte("GRPC Gorilla!\n"))
 }
 
