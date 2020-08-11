@@ -42,7 +42,11 @@ jobs:
           command: |
             cd ${GITHUB_REPOSITORY}/${APP_DIR}
             git checkout -b gitops-${GITHUB_USERNAME}-${CIRCLE_SHA1}
+            # Set new image tag
             ~/kustomize edit set image ${AWS_ECR_ACCOUNT_URL}/${AWS_ECR_REPOSITORY}:${CIRCLE_SHA1}
+            # Set version as annotation
+            ~/kustomize edit remove annotation version || true
+            ~/kustomize edit add annotation version:`echo ${CIRCLE_SHA1} | cut -b 1-7`
             git add .
             git commit -m "update ${APP_DIR} manifest for ${CIRCLE_SHA1}"
             git push origin gitops-${GITHUB_USERNAME}-${CIRCLE_SHA1}
