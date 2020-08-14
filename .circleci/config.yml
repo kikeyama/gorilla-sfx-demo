@@ -61,10 +61,10 @@ jobs:
             kubectl get vs gorilla-sfx-demo-virtualservice -o yaml
             echo "export DEPLOY=`kubectl get vs gorilla-sfx-demo-virtualservice -o yaml | yq '.spec.http[].match[].headers."x-deploy".exact' | grep -iv null | sed 's/"//g'`" >> $BASH_ENV
       - run:
-          name: update manifest
+          name: update deployment manifest
           command: |
-            cd ${GITHUB_REPOSITORY}/${APP_NAME}/<<parameters.env>>
             git checkout -b gitops-${GITHUB_USERNAME}-${CIRCLE_SHA1}
+            cd ~/${GITHUB_REPOSITORY}/${APP_NAME}/<<parameters.env>>
             # Set new image tag
             ~/kustomize edit set image ${AWS_ECR_ACCOUNT_URL}/${AWS_ECR_REPOSITORY}:${CIRCLE_SHA1}
             # Set version as annotation and label
@@ -75,6 +75,16 @@ jobs:
             # Set deployment resource for blue/green deployment
             ~/kustomize edit remove resource *
             ~/kustomize edit add resource ${APP_NAME}-deployment-${DEPLOY}.yaml
+      - run:
+          name: update virtualservice manifest
+          command: |
+            cd ~/${GITHUB_REPOSITORY}/${APP_NAME}/<<parameters.env>>/istio
+            # Set virtual service resource for blue/green deployment
+            ~/kustomize edit remove resource *
+            ~/kustomize edit add resource ${APP_NAME}-istio-virtualservice-${DEPLOY}.yaml
+      - run:
+          name: git commit and push
+            cd ~/${GITHUB_REPOSITORY}
             git add .
             git commit -m "update ${APP_NAME} manifest for ${CIRCLE_SHA1}"
             git push origin gitops-${GITHUB_USERNAME}-${CIRCLE_SHA1}
