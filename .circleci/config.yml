@@ -84,6 +84,7 @@ jobs:
             ~/kustomize edit add resource ${APP_NAME}-istio-virtualservice-${DEPLOY}.yaml
       - run:
           name: git commit and push
+          command: |
             cd ~/${GITHUB_REPOSITORY}
             git add .
             git commit -m "update ${APP_NAME} manifest for ${CIRCLE_SHA1}"
