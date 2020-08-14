@@ -63,8 +63,8 @@ jobs:
       - run:
           name: update deployment manifest
           command: |
-            git checkout -b gitops-${GITHUB_USERNAME}-${CIRCLE_SHA1}
             cd ~/${GITHUB_REPOSITORY}/${APP_NAME}/<<parameters.env>>
+            git checkout -b gitops-${GITHUB_USERNAME}-${CIRCLE_SHA1}
             # Set new image tag
             ~/kustomize edit set image ${AWS_ECR_ACCOUNT_URL}/${AWS_ECR_REPOSITORY}:${CIRCLE_SHA1}
             # Set version as annotation and label
