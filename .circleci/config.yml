@@ -10,6 +10,12 @@ jobs:
     environment:
       GH_CLI_VERSION: "0.11.1"
 
+    parameters:
+      env:
+        default: eks
+        description: Kubernetes environment (eks, minikube, etc)
+        type: string
+
     steps:
       # Slack
       - slack/notify:
@@ -50,14 +56,14 @@ jobs:
             git config --global user.email ${GITHUB_EMAIL}
             git clone https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/${GITHUB_ORG}/${GITHUB_REPOSITORY}.git
       - run:
-          name: get current deploy
+          name: get current deploy (blue/green)
           command: |
             kubectl get vs gorilla-sfx-demo-virtualservice -o yaml
             echo "export DEPLOY=`kubectl get vs gorilla-sfx-demo-virtualservice -o yaml | yq '.spec.http[].match[].headers."x-deploy".exact' | grep -iv null | sed 's/"//g'`" >> $BASH_ENV
       - run:
           name: update manifest
           command: |
-            cd ${GITHUB_REPOSITORY}/${APP_NAME}
+            cd ${GITHUB_REPOSITORY}/${APP_NAME}/<<parameters.env>>
             git checkout -b gitops-${GITHUB_USERNAME}-${CIRCLE_SHA1}
             # Set new image tag
             ~/kustomize edit set image ${AWS_ECR_ACCOUNT_URL}/${AWS_ECR_REPOSITORY}:${CIRCLE_SHA1}
@@ -66,7 +72,7 @@ jobs:
             ~/kustomize edit add annotation version:${CIRCLE_SHA1}
             ~/kustomize edit remove label version || true
             ~/kustomize edit add label version:`echo ${CIRCLE_SHA1} | cut -b 1-7`
-            # Set deployment resource
+            # Set deployment resource for blue/green deployment
             ~/kustomize edit remove resource *
             ~/kustomize edit add resource ${APP_NAME}-deployment-${DEPLOY}.yaml
             git add .
@@ -144,6 +150,7 @@ workflows:
           requires:
             - slack_approval_notification
       - manifest_pull_request:
+          env: eks
           context: kikeyama-context
           requires:
             - hold
