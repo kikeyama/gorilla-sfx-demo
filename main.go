@@ -25,6 +25,10 @@ type Message struct {
 	Message string
 }
 
+type Healthz struct {
+	Status string `json:"status"`
+}
+
 func RootHandler(w http.ResponseWriter, r *http.Request) {
 //	span := tracer.StartSpan("RootHandler", tracer.ResourceName("/"))
 //	defer span.Finish()
@@ -46,6 +50,19 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 
 	logger.Printf("level=info message=\"Start handling root request\"")
 	w.Write([]byte("Root Gorilla!\n"))
+}
+
+func HealthzHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Printf("level=info message=\"Start handling healthz request\"")
+	healthz := Healthz{"ok"}
+	healthzJson, err := json.Marshal(healthz)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logger.Printf("level=error message=\"unexpected error at /healthz\"")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(healthzJson)
 }
 
 func PostHandler(w http.ResponseWriter, r *http.Request) {
@@ -119,6 +136,7 @@ func main() {
 	//r := httptrace.NewServeMux(httptrace.WithServiceName("kikeyama_gorilla"))
 	// Routes consist of a path and a handler function.
 	r.HandleFunc("/", RootHandler)
+	r.HandleFunc("/healthz", HealthzHandler)
 	r.HandleFunc("/api/post", PostHandler).Methods("POST")
 	r.HandleFunc("/api/trace/{id:[0-9a-z_-]+}", IdHandler).Queries("httpstatus", "{httpstatus}")
 	r.HandleFunc("/api/grpc", GrpcHandler)
