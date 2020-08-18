@@ -56,14 +56,14 @@ jobs:
             git config --global user.email ${GITHUB_EMAIL}
             git clone https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/${GITHUB_ORG}/${GITHUB_REPOSITORY}.git
       - run:
-          name: get current deploy (blue/green)
+          name: get next deployment zone (blue/green)
           command: |
             kubectl get vs gorilla-sfx-demo-virtualservice -o yaml
-            echo "export DEPLOY=`kubectl get vs gorilla-sfx-demo-virtualservice -o yaml | yq '.spec.http[].match[].headers."x-deploy".exact' | grep -iv null | sed 's/"//g'`" >> $BASH_ENV
+            echo "export NEXT_DEPLOY=`kubectl get vs gorilla-sfx-demo-virtualservice -o yaml | yq '.spec.http[].match[].headers."x-deploy".exact' | grep -iv null | sed 's/"//g'`" >> $BASH_ENV
       - run:
           name: update deployment manifest
           command: |
-            cd ~/${GITHUB_REPOSITORY}/${APP_NAME}/<<parameters.env>>
+            cd ~/${GITHUB_REPOSITORY}/${APP_NAME}/<<parameters.env>>/deployment/${NEXT_DEPLOY}
             git checkout -b gitops-${GITHUB_USERNAME}-${CIRCLE_SHA1}
             # Set new image tag
             ~/kustomize edit set image ${AWS_ECR_ACCOUNT_URL}/${AWS_ECR_REPOSITORY}:${CIRCLE_SHA1}
@@ -72,16 +72,13 @@ jobs:
             ~/kustomize edit add annotation version:${CIRCLE_SHA1}
             ~/kustomize edit remove label version || true
             ~/kustomize edit add label version:`echo ${CIRCLE_SHA1} | cut -b 1-7`
-            # Set deployment resource for blue/green deployment
-            ~/kustomize edit remove resource *
-            ~/kustomize edit add resource ${APP_NAME}-deployment-${DEPLOY}.yaml
       - run:
           name: update virtualservice manifest
           command: |
-            cd ~/${GITHUB_REPOSITORY}/${APP_NAME}/<<parameters.env>>/istio
+            cd ~/${GITHUB_REPOSITORY}/${APP_NAME}/<<parameters.env>>/virtualservice
             # Set virtual service resource for blue/green deployment
             ~/kustomize edit remove resource *
-            ~/kustomize edit add resource ${APP_NAME}-istio-virtualservice-${DEPLOY}.yaml
+            ~/kustomize edit add resource ${APP_NAME}-istio-virtualservice-${NEXT_DEPLOY}.yaml
       - run:
           name: git commit and push
           command: |
