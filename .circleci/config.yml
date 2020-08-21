@@ -3,7 +3,7 @@ jobs:
   manifest_pull_request:
     docker:
       # specify the version you desire here
-      - image: cimg/python:3.7
+      - image: cimg/base:stable-18.04
 
     working_directory: ~/
 
@@ -46,10 +46,6 @@ jobs:
             curl -s "https://raw.githubusercontent.com/\
             kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
       - run:
-          name: install yq
-          command: |
-            pip3 install yq
-      - run:
           name: clone manifest repository
           command: |
             git config --global user.name ${GITHUB_USERNAME}
@@ -59,7 +55,7 @@ jobs:
           name: get next deployment zone (blue/green)
           command: |
             kubectl get vs gorilla-sfx-demo-virtualservice -o yaml
-            echo "export NEXT_DEPLOY=`kubectl get vs gorilla-sfx-demo-virtualservice -o yaml | yq '.spec.http[].match[].headers."x-deploy".exact' | grep -iv null | sed 's/"//g'`" >> $BASH_ENV
+            echo "export NEXT_DEPLOY=`kubectl get vs gorilla-sfx-demo-virtualservice -o jsonpath='{.spec.http[].match[].headers.x-deploy.exact}'`" >> $BASH_ENV
       - run:
           name: update deployment manifest
           command: |
