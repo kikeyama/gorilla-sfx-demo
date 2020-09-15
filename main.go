@@ -22,9 +22,9 @@ import (
 var logger = log.New(os.Stdout, "", log.LstdFlags|log.Lmicroseconds|log.Lshortfile)
 
 const (
-	address     = "localhost:50051"
+	grpcPort     = ":50051"
 	defaultName = "world"
-	serviceName = "kikeyama_grpc_client"
+	grpcClientServiceName = "kikeyama_grpc_client"
 )
 
 type Message struct {
@@ -92,13 +92,19 @@ func IdHandler(w http.ResponseWriter, r *http.Request) {
 func GrpcHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Printf("level=info message=\"Start handling GRPC request\"")
 
+	grpcHost, exists := os.LookupEnv("GRPC_HOST")
+	if !exists {
+		grpcHost = "localhost"
+	}
+	grpcAddress := grpcHost + grpcPort
+
 	// enable signalfx trace
 	// Create the client interceptor using the grpc trace package.
-	si := grpctrace.StreamClientInterceptor(grpctrace.WithServiceName(serviceName))
-	ui := grpctrace.UnaryClientInterceptor(grpctrace.WithServiceName(serviceName))
+	si := grpctrace.StreamClientInterceptor(grpctrace.WithServiceName(grpcClientServiceName))
+	ui := grpctrace.UnaryClientInterceptor(grpctrace.WithServiceName(grpcClientServiceName))
 
 	// Set up a connection to the server.
-	conn, err_conn := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock(),
+	conn, err_conn := grpc.Dial(grpcAddress, grpc.WithInsecure(), grpc.WithBlock(),
 		grpc.WithStreamInterceptor(si), grpc.WithUnaryInterceptor(ui))
 	if err_conn != nil {
 		log.Fatalf("did not connect: %v", err_conn)
