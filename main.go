@@ -10,6 +10,8 @@ import (
 //	"context"
 //	"time"
 
+	"github.com/golang/protobuf/jsonpb"
+
 	"google.golang.org/grpc"
 	pb "github.com/kikeyama/grpc-sfx-demo/pb"
 
@@ -137,7 +139,7 @@ func getEnv(key string, defaultVal string) string {
 //	w.Write([]byte(r2.GetMessage()))
 //}
 
-func AnimalHandler(w http.ResponseWriter, r *http.Request) {
+func ListAnimalsHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Printf("level=info message=\"List animals through gRPC\"")
 	grpcHost := getEnv("GRPC_HOST", "localhost")
 	grpcAddress := grpcHost + grpcPort
@@ -163,13 +165,17 @@ func AnimalHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("error: %v", err_r2)
 	}
 
-	animalsJson, err := json.Marshal(r2.GetAnimals())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		logger.Printf("level=error message=\"unable to marshall animals to json\"")
-		return
-	}
-	w.Write([]byte(animalsJson))
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	m := jsonpb.Marshaler{EmitDefaults: true}
+	m.Marshal(w, r2)
+
+//	animalsJson, err := json.Marshal(r2.GetAnimals())
+//	if err != nil {
+//		http.Error(w, err.Error(), http.StatusInternalServerError)
+//		logger.Printf("level=error message=\"unable to marshall animals to json\"")
+//		return
+//	}
+//	w.Write([]byte(animalsJson))
 }
 
 func main() {
@@ -185,7 +191,7 @@ func main() {
 	r.HandleFunc("/api/post", PostHandler).Methods("POST")
 	r.HandleFunc("/api/trace/{id:[0-9a-z_-]+}", IdHandler).Queries("httpstatus", "{httpstatus}")
 //	r.HandleFunc("/api/grpc", GrpcHandler)
-	r.HandleFunc("/api/grpc/animal", AnimalHandler)
+	r.HandleFunc("/api/grpc/animal", ListAnimalsHandler).Methods("GET")
 
 	// Bind to a port and pass our router in
 	log.Fatal(http.ListenAndServe(":9090", r))
