@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"fmt"
 	"encoding/json"
 	"github.com/gorilla/mux"
 //	"context"
@@ -23,9 +24,12 @@ import (
 //var logger log.Logger
 var logger = log.New(os.Stdout, "", log.LstdFlags|log.Lmicroseconds|log.Lshortfile)
 
+var c pb.AnimalServiceClient
+var conn *grpc.ClientConn
+
 const (
-	grpcPort     = ":50051"
-	defaultName = "world"
+//	grpcPort     = ":50051"
+//	defaultName = "world"
 	grpcClientServiceName = "kikeyama_grpc_client"
 )
 
@@ -139,10 +143,13 @@ func getEnv(key string, defaultVal string) string {
 //	w.Write([]byte(r2.GetMessage()))
 //}
 
-func ListAnimalsHandler(w http.ResponseWriter, r *http.Request) {
-	logger.Printf("level=info message=\"List animals through gRPC\"")
+func openGrpcClient() error {
+
+	logger.Printf("level=info message=\"Open gRPC client connection\"")
+
 	grpcHost := getEnv("GRPC_HOST", "localhost")
-	grpcAddress := grpcHost + grpcPort
+	grpcPort := getEnv("GRPC_PORT", "50051")
+	grpcAddress := grpcHost + ":" + grpcPort
 
 	// enable signalfx trace
 	// Create the client interceptor using the grpc trace package.
@@ -150,19 +157,44 @@ func ListAnimalsHandler(w http.ResponseWriter, r *http.Request) {
 	ui := grpctrace.UnaryClientInterceptor(grpctrace.WithServiceName(grpcClientServiceName))
 
 	// Set up a connection to the server.
-	conn, err_conn := grpc.Dial(grpcAddress, grpc.WithInsecure(), grpc.WithBlock(),
+	conn, err := grpc.Dial(grpcAddress, grpc.WithInsecure(), grpc.WithBlock(),
 		grpc.WithStreamInterceptor(si), grpc.WithUnaryInterceptor(ui))
-	if err_conn != nil {
-		log.Fatalf("did not connect: %v", err_conn)
+	if err != nil {
+		log.Printf("level=error message=\"cannot connect grpc: %v\"", err)
+		return err
 	}
-	defer conn.Close()
-	c := pb.NewAnimalServiceClient(conn)
+	c = pb.NewAnimalServiceClient(conn)
+
+	return nil
+
+}
+
+func ListAnimalsHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Printf("level=info message=\"List animals through gRPC\"")
+
+//	grpcHost := getEnv("GRPC_HOST", "localhost")
+//	grpcPort := getEnv("GRPC_PORT", "50051")
+//	grpcAddress := grpcHost + ":" + grpcPort
+//
+//	// enable signalfx trace
+//	// Create the client interceptor using the grpc trace package.
+//	si := grpctrace.StreamClientInterceptor(grpctrace.WithServiceName(grpcClientServiceName))
+//	ui := grpctrace.UnaryClientInterceptor(grpctrace.WithServiceName(grpcClientServiceName))
+//
+//	// Set up a connection to the server.
+//	conn, err_conn := grpc.Dial(grpcAddress, grpc.WithInsecure(), grpc.WithBlock(),
+//		grpc.WithStreamInterceptor(si), grpc.WithUnaryInterceptor(ui))
+//	if err_conn != nil {
+//		log.Fatalf("did not connect: %v", err_conn)
+//	}
+//	defer conn.Close()
+//	c := pb.NewAnimalServiceClient(conn)
 
 	// Contact the server and print out its response.
 	ctx := r.Context()
-	r2, err_r2 := c.ListAnimals(ctx, &pb.EmptyRequest{})
-	if err_r2 != nil {
-		log.Fatalf("error: %v", err_r2)
+	r2, err := c.ListAnimals(ctx, &pb.EmptyRequest{})
+	if err != nil {
+		logger.Printf("level=error message=\"failed to get response from grpc server: %v\"", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -178,12 +210,34 @@ func ListAnimalsHandler(w http.ResponseWriter, r *http.Request) {
 //	w.Write([]byte(animalsJson))
 }
 
+func GetAnimalHandler(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	logger.Printf(fmt.Sprintf("level=info message=\"Get animal through gRPC with id: %s\"", id))
+
+	ctx := r.Context()
+	r2, err := c.GetAnimal(ctx, &pb.AnimalId{Id: id})
+	if err != nil {
+		logger.Printf("level=error message=\"failed to get response from grpc server: %v\"", err)
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	m := jsonpb.Marshaler{EmitDefaults: true}
+	m.Marshal(w, r2)
+}
+
 func main() {
 	// Use signalfx tracing
 	tracing.Start(tracing.WithGlobalTag("stage", "demo"), tracing.WithServiceName("kikeyama_gorilla"))
 	defer tracing.Stop()
 
 	r := muxtrace.NewRouter()
+
+	err := openGrpcClient()
+	if err != nil {
+		logger.Fatalf("level=fatal message=\"failed to open grpc connection: %v\"", err)
+	}
+	defer conn.Close()
+
 	//r := muxtrace.NewRouter(muxtrace.WithServiceName("kikeyama_gorilla"))	// service name doesn't work here
 	// Routes consist of a path and a handler function.
 	r.HandleFunc("/", RootHandler)
@@ -192,6 +246,7 @@ func main() {
 	r.HandleFunc("/api/trace/{id:[0-9a-z_-]+}", IdHandler).Queries("httpstatus", "{httpstatus}")
 //	r.HandleFunc("/api/grpc", GrpcHandler)
 	r.HandleFunc("/api/grpc/animal", ListAnimalsHandler).Methods("GET")
+	r.HandleFunc("/api/grpc/animal/{id:[0-9a-f-]+}", GetAnimalHandler).Methods("GET")
 
 	// Bind to a port and pass our router in
 	log.Fatal(http.ListenAndServe(":9090", r))
