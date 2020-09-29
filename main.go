@@ -14,6 +14,8 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	pb "github.com/kikeyama/grpc-sfx-demo/pb"
 
 	muxtrace "github.com/signalfx/signalfx-go-tracing/contrib/gorilla/mux"
@@ -217,7 +219,17 @@ func GetAnimalHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	r2, err := c.GetAnimal(ctx, &pb.AnimalId{Id: id})
 	if err != nil {
+//		r2Json, _ := json.Marshal(r2)
+		if status.Code(err) == codes.NotFound {
+			logger.Printf("level=error message=\"document not found: %v\"", err)
+			w.Header().Set("Content-Type", "application/json")
+//			http.Error(w, string(r2Json), http.StatusNotFound)
+			http.Error(w, "{}", http.StatusNotFound)
+			return
+		}
 		logger.Printf("level=error message=\"failed to get response from grpc server: %v\"", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
