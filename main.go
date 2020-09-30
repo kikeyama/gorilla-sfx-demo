@@ -194,7 +194,7 @@ func ListAnimalsHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Contact the server and print out its response.
 	ctx := r.Context()
-	r2, err := c.ListAnimals(ctx, &pb.EmptyRequest{})
+	r2, err := c.ListAnimals(ctx, &pb.Empty{})
 	if err != nil {
 		logger.Printf("level=error message=\"failed to get response from grpc server: %v\"", err)
 	}
@@ -235,6 +235,14 @@ func GetAnimalHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	m := jsonpb.Marshaler{EmitDefaults: true}
 	m.Marshal(w, r2)
+
+//	animalJson, err := json.Marshal(r2)
+//	if err != nil {
+//		http.Error(w, err.Error(), http.StatusInternalServerError)
+//		logger.Printf("level=error message=\"unable to marshall animal to json\"")
+//		return
+//	}
+//	w.Write([]byte(animalJson))
 }
 
 func main() {
