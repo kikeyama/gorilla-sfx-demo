@@ -43,6 +43,11 @@ type Healthz struct {
 	Status string `json:"status"`
 }
 
+type HTTPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
 func RootHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Printf("level=info message=\"Start handling root request\"")
 	w.Write([]byte("Root Gorilla!\n"))
@@ -245,6 +250,49 @@ func GetAnimalHandler(w http.ResponseWriter, r *http.Request) {
 //	w.Write([]byte(animalJson))
 }
 
+func CreateAnimalHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Printf("level=info message=\"Create animal through gRPC\"")
+
+	var pbAnimal pb.Animal
+	err := json.NewDecoder(r.Body).Decode(&pbAnimal)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		logger.Printf("level=error message=\"error in parse request body json\"")
+		return
+	}
+
+	// Contact the server and print out its response.
+	ctx := r.Context()
+	r2, err := c.CreateAnimal(ctx, &pbAnimal)
+	if err != nil {
+		logger.Printf("level=error message=\"failed to get response from grpc server: %v\"", err)
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	m := jsonpb.Marshaler{EmitDefaults: true}
+	m.Marshal(w, r2)
+}
+
+func NotFoundHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger.Printf(fmt.Sprintf("level=error message=\"page not found at %s\"", r.RequestURI))
+		httperror := HTTPError{
+			Code:    http.StatusNotFound,
+			Message: http.StatusText(http.StatusNotFound),
+		}
+		httperrorJson, err := json.Marshal(httperror)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			logger.Printf("level=error message=\"unexpected error at not found\"")
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+//		http.Error(w, string(httperrorJson), http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
+		w.Write(httperrorJson)
+	})
+}
+
 func main() {
 	// Use signalfx tracing
 	tracing.Start(tracing.WithGlobalTag("stage", "demo"), tracing.WithServiceName("kikeyama_gorilla"))
@@ -267,6 +315,9 @@ func main() {
 //	r.HandleFunc("/api/grpc", GrpcHandler)
 	r.HandleFunc("/api/grpc/animal", ListAnimalsHandler).Methods("GET")
 	r.HandleFunc("/api/grpc/animal/{id:[0-9a-f-]+}", GetAnimalHandler).Methods("GET")
+	r.HandleFunc("/api/grpc/animal", CreateAnimalHandler).Methods("POST")
+
+	r.NotFoundHandler = NotFoundHandler()
 
 	// Bind to a port and pass our router in
 	log.Fatal(http.ListenAndServe(":9090", r))
