@@ -43,9 +43,10 @@ type Healthz struct {
 	Status string `json:"status"`
 }
 
-type HTTPError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+type HTTPStatus struct {
+	Code    int    `json:"code,omitempty"`
+	Status  string `json:"status,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 func RootHandler(w http.ResponseWriter, r *http.Request) {
@@ -269,14 +270,62 @@ func CreateAnimalHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusCreated)
 	m := jsonpb.Marshaler{EmitDefaults: true}
 	m.Marshal(w, r2)
+}
+
+func DeleteAnimalHandler(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	logger.Printf(fmt.Sprintf("level=info message=\"Delete animal through gRPC with id: %s\"", id))
+
+	ctx := r.Context()
+	_, err := c.DeleteAnimal(ctx, &pb.AnimalId{Id: id})
+	if err != nil {
+//		r2Json, _ := json.Marshal(r2)
+		if status.Code(err) == codes.NotFound {
+			logger.Printf("level=error message=\"document not found: %v\"", err)
+			w.Header().Set("Content-Type", "application/json")
+//			http.Error(w, string(r2Json), http.StatusNotFound)
+//			http.Error(w, "{}", http.StatusNotFound)
+			httpStatus := HTTPStatus{
+				Code:    http.StatusNotFound,
+				Status:  "Error",
+				Message: status.Convert(err).Message(),
+			}
+			httpStatusJson, _ := json.Marshal(httpStatus)
+			w.WriteHeader(http.StatusNotFound)
+			w.Write(httpStatusJson)
+			return
+		}
+		logger.Printf("level=error message=\"failed to get response from grpc server: %v\"", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	httpStatus := HTTPStatus{
+		Code:    http.StatusOK,
+		Status:  "Success",
+		Message: http.StatusText(http.StatusOK),
+	}
+	httpStatusJson, err := json.Marshal(httpStatus)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logger.Printf("level=error message=\"unexpected error at not found\"")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+//	m := jsonpb.Marshaler{EmitDefaults: true}
+//	m.Marshal(w, r2)
+
+	w.Write(httpStatusJson)
 }
 
 func NotFoundHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger.Printf(fmt.Sprintf("level=error message=\"page not found at %s\"", r.RequestURI))
-		httperror := HTTPError{
+		httperror := HTTPStatus{
 			Code:    http.StatusNotFound,
 			Message: http.StatusText(http.StatusNotFound),
 		}
@@ -316,6 +365,7 @@ func main() {
 	r.HandleFunc("/api/grpc/animal", ListAnimalsHandler).Methods("GET")
 	r.HandleFunc("/api/grpc/animal/{id:[0-9a-f-]+}", GetAnimalHandler).Methods("GET")
 	r.HandleFunc("/api/grpc/animal", CreateAnimalHandler).Methods("POST")
+	r.HandleFunc("/api/grpc/animal/{id:[0-9a-f-]+}", DeleteAnimalHandler).Methods("DELETE")
 
 	r.NotFoundHandler = NotFoundHandler()
 
