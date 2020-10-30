@@ -153,7 +153,7 @@ func getEnv(key string, defaultVal string) string {
 
 func openGrpcClient() error {
 
-	logger.Printf("level=info message=\"Open gRPC client connection\"")
+	logger.Printf("level=info message=\"Start open gRPC client connection\"")
 
 	grpcHost := getEnv("GRPC_HOST", "localhost")
 	grpcPort := getEnv("GRPC_PORT", "50051")
@@ -165,14 +165,20 @@ func openGrpcClient() error {
 	ui := grpctrace.UnaryClientInterceptor(grpctrace.WithServiceName(grpcClientServiceName))
 
 	// Set up a connection to the server.
-	conn, err := grpc.Dial(grpcAddress, grpc.WithInsecure(), grpc.WithBlock(),
-		grpc.WithStreamInterceptor(si), grpc.WithUnaryInterceptor(ui))
+	conn, err := grpc.Dial(
+		grpcAddress, 
+		grpc.WithInsecure(), 
+//		grpc.WithBlock(),
+		grpc.WithStreamInterceptor(si), 
+		grpc.WithUnaryInterceptor(ui),
+	)
 	if err != nil {
 		log.Printf("level=error message=\"cannot connect grpc: %v\"", err)
 		return err
 	}
 	c = pb.NewAnimalServiceClient(conn)
 
+	logger.Printf("level=info message=\"Finish open gRPC client connection\"")
 	return nil
 
 }
@@ -349,6 +355,7 @@ func main() {
 
 	r := muxtrace.NewRouter()
 
+	// open gRPC connection	as client
 	err := openGrpcClient()
 	if err != nil {
 		logger.Fatalf("level=fatal message=\"failed to open grpc connection: %v\"", err)
@@ -370,5 +377,6 @@ func main() {
 	r.NotFoundHandler = NotFoundHandler()
 
 	// Bind to a port and pass our router in
+	logger.Printf("level=info message=\"Open http connection\"")
 	log.Fatal(http.ListenAndServe(":9090", r))
 }
