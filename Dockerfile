@@ -11,4 +11,5 @@ RUN CGO_ENABLED=0 go build -o /bin/gorilla-sfx-demo
 FROM scratch
 COPY --from=build /bin/gorilla-sfx-demo /bin/gorilla-sfx-demo
 COPY --from=busybox:1.32 /bin/busybox /bin/busybox
+ENV GRPC_GO_RETRY on
 CMD ["/bin/gorilla-sfx-demo"]
