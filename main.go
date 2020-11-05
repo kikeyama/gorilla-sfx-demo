@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"encoding/json"
 	"github.com/gorilla/mux"
-//	"context"
-//	"time"
 
 	"github.com/golang/protobuf/jsonpb"
 
@@ -23,15 +21,12 @@ import (
 	"github.com/signalfx/signalfx-go-tracing/tracing"
 )
 
-//var logger log.Logger
 var logger = log.New(os.Stdout, "", log.LstdFlags|log.Lmicroseconds|log.Lshortfile)
 
 var c pb.AnimalServiceClient
 var conn *grpc.ClientConn
 
 const (
-//	grpcPort     = ":50051"
-//	defaultName = "world"
 	grpcClientServiceName = "kikeyama_grpc_client"
 )
 
@@ -111,46 +106,6 @@ func getEnv(key string, defaultVal string) string {
 	}
 }
 
-//func GrpcHandler(w http.ResponseWriter, r *http.Request) {
-//	logger.Printf("level=info message=\"Start handling GRPC request\"")
-//
-//	grpcHost := getEnv("GRPC_HOST", "localhost")
-////	grpcHost, exists := os.LookupEnv("GRPC_HOST")
-////	if !exists {
-////		grpcHost = "localhost"
-////	}
-//	grpcAddress := grpcHost + grpcPort
-//
-//	// enable signalfx trace
-//	// Create the client interceptor using the grpc trace package.
-//	si := grpctrace.StreamClientInterceptor(grpctrace.WithServiceName(grpcClientServiceName))
-//	ui := grpctrace.UnaryClientInterceptor(grpctrace.WithServiceName(grpcClientServiceName))
-//
-//	// Set up a connection to the server.
-//	conn, err_conn := grpc.Dial(grpcAddress, grpc.WithInsecure(), grpc.WithBlock(),
-//		grpc.WithStreamInterceptor(si), grpc.WithUnaryInterceptor(ui))
-//	if err_conn != nil {
-//		log.Fatalf("did not connect: %v", err_conn)
-//	}
-//	defer conn.Close()
-//	c := pb.NewDemoClient(conn)
-//
-//	// Contact the server and print out its response.
-//	name := defaultName
-//	if len(os.Args) > 1 {
-//		name = os.Args[1]
-//	}
-//	ctx := r.Context()
-////	ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
-////	defer cancel()
-//	r2, err_r2 := c.GetMessageService(ctx, &pb.DemoRequest{Name: name})
-//	if err_r2 != nil {
-//		log.Fatalf("error: %v", err_r2)
-//	}
-//
-//	w.Write([]byte(r2.GetMessage()))
-//}
-
 func openGrpcClient() error {
 
 	logger.Printf("level=info message=\"Start open gRPC client connection\"")
@@ -186,24 +141,6 @@ func openGrpcClient() error {
 func ListAnimalsHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Printf("level=info message=\"List animals through gRPC\"")
 
-//	grpcHost := getEnv("GRPC_HOST", "localhost")
-//	grpcPort := getEnv("GRPC_PORT", "50051")
-//	grpcAddress := grpcHost + ":" + grpcPort
-//
-//	// enable signalfx trace
-//	// Create the client interceptor using the grpc trace package.
-//	si := grpctrace.StreamClientInterceptor(grpctrace.WithServiceName(grpcClientServiceName))
-//	ui := grpctrace.UnaryClientInterceptor(grpctrace.WithServiceName(grpcClientServiceName))
-//
-//	// Set up a connection to the server.
-//	conn, err_conn := grpc.Dial(grpcAddress, grpc.WithInsecure(), grpc.WithBlock(),
-//		grpc.WithStreamInterceptor(si), grpc.WithUnaryInterceptor(ui))
-//	if err_conn != nil {
-//		log.Fatalf("did not connect: %v", err_conn)
-//	}
-//	defer conn.Close()
-//	c := pb.NewAnimalServiceClient(conn)
-
 	// Contact the server and print out its response.
 	ctx := r.Context()
 	r2, err := c.ListAnimals(ctx, &pb.Empty{})
@@ -214,14 +151,6 @@ func ListAnimalsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	m := jsonpb.Marshaler{EmitDefaults: true}
 	m.Marshal(w, r2)
-
-//	animalsJson, err := json.Marshal(r2.GetAnimals())
-//	if err != nil {
-//		http.Error(w, err.Error(), http.StatusInternalServerError)
-//		logger.Printf("level=error message=\"unable to marshall animals to json\"")
-//		return
-//	}
-//	w.Write([]byte(animalsJson))
 }
 
 func GetAnimalHandler(w http.ResponseWriter, r *http.Request) {
@@ -236,7 +165,15 @@ func GetAnimalHandler(w http.ResponseWriter, r *http.Request) {
 			logger.Printf("level=error message=\"document not found: %v\"", err)
 			w.Header().Set("Content-Type", "application/json")
 //			http.Error(w, string(r2Json), http.StatusNotFound)
-			http.Error(w, "{}", http.StatusNotFound)
+//			http.Error(w, "{}", http.StatusNotFound)
+			httpStatus := HTTPStatus{
+				Code:    http.StatusNotFound,
+				Status:  "Error",
+				Message: status.Convert(err).Message(),
+			}
+			httpStatusJson, _ := json.Marshal(httpStatus)
+			w.WriteHeader(http.StatusNotFound)
+			w.Write(httpStatusJson)
 			return
 		}
 		logger.Printf("level=error message=\"failed to get response from grpc server: %v\"", err)
@@ -342,7 +279,6 @@ func NotFoundHandler() http.Handler {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-//		http.Error(w, string(httperrorJson), http.StatusNotFound)
 		w.WriteHeader(http.StatusNotFound)
 		w.Write(httperrorJson)
 	})
@@ -368,7 +304,6 @@ func main() {
 	r.HandleFunc("/healthz", HealthzHandler)
 	r.HandleFunc("/api/post", PostHandler).Methods("POST")
 	r.HandleFunc("/api/trace/{id:[0-9a-z_-]+}", IdHandler).Queries("httpstatus", "{httpstatus}")
-//	r.HandleFunc("/api/grpc", GrpcHandler)
 	r.HandleFunc("/api/grpc/animal", ListAnimalsHandler).Methods("GET")
 	r.HandleFunc("/api/grpc/animal/{id:[0-9a-f-]+}", GetAnimalHandler).Methods("GET")
 	r.HandleFunc("/api/grpc/animal", CreateAnimalHandler).Methods("POST")
